@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  product-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: productdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d productdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: orderdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d orderdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inventorydb
+    ports:
+      - "5434:5432"
+    volumes:
+      - inventory-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d inventorydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-service:
+    build: ./product-service
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://user:password@product-db:5432/productdb
+    depends_on:
+      product-db:
+        condition: service_healthy
+    restart: on-failure
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://user:password@order-db:5432/orderdb
+      PRODUCT_SERVICE_URL: http://product-service:8001
+      INVENTORY_SERVICE_URL: http://inventory-service:8003
+    depends_on:
+      order-db:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+    restart: on-failure
+
+  inventory-service:
+    build: ./inventory-service
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql://user:password@inventory-db:5432/inventorydb
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  product-db-data:
+  order-db-data:
+  inventory-db-data:
