@@ -1,4 +1,4 @@
-# E-Commerce Microservices Platform
+# E-Commerce Microservices System
 
 A distributed e-commerce system built with microservices architecture using FastAPI, PostgreSQL, and Redis.
 
